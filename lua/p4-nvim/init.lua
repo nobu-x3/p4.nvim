@@ -4,5 +4,6 @@ local M = {}
 
 M.checkout = p4.checkout
 M.add = p4.add
+M.changelists = p4.changelists
 
 return M

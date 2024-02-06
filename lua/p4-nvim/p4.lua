@@ -23,6 +23,22 @@ function get_latest_changelist_nr(data)
     return num
 end
 
+local function get_pending_changelists(data)
+    vim.print("\nGET PENDING CHANGELISTS\nDATA:\n")
+    vim.print(data)
+    local lines = split(data, '\n')
+    vim.print("\nFIRST SPLIT\n")
+    vim.print(vim.inspect(lines))
+    local nums = {}
+    vim.print("\nLINES:\n")
+    for i,v in ipairs(lines) do
+        vim.print(i .. "\t" .. v .. '\n')
+        local words = split(v)
+        nums[i] = words[2]
+    end
+    return nums
+end
+
 function checkout_callback(chan_id, data, name)
     local bufname = vim.fn.bufname()
     local num = get_latest_changelist_nr(data)
@@ -35,11 +51,18 @@ end
 
 function M.checkout()
     print("checkout")
-    vim.fn.jobstart('p4 changelists', {on_stdout = checkout_callback})
     --
     -- local obj = vim.system({'echo', 'hello'}, { text = true }):wait()
     -- local obj = vim.system({'p4', 'changelists'}, {stdout = true}):wait()
     -- print(obj.stdout)
+end
+
+function M.changelists()
+    local job = vim.fn.system('p4 changes -s pending')
+    vim.print(job)
+    local nums = get_pending_changelists(job)
+    vim.print("\nAFTER GETTING PENDING CHANGELISTS\n")
+    vim.notify(vim.inspect(nums))
 end
 
 local function add_callback(chan_id, data, name)
@@ -51,5 +74,9 @@ end
 
 function M.add()
     vim.fn.jobstart('p4 changelists', {on_stdout = add_callback})
+end
+
+function test_p4()
+    M.changelists()
 end
 return M
