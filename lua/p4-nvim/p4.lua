@@ -1,82 +1,80 @@
 local M = {}
 
-local function split (inputstr, sep)
-        if sep == nil then
-                sep = "%s"
-        end
-        local t={}
-        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-                table.insert(t, str)
-        end
-        return t
+debug_print_enabled = false
+
+local function split(inputstr, sep)
+    if sep == nil then
+        sep = "%s"
+    end
+    local t = {}
+    for str in string.gmatch(inputstr, "([^" .. sep .. "]+)") do
+        table.insert(t, str)
+    end
+    return t
 end
 
-
-local function print_stdout(chan_id, data, name)
-    print("stdout:")
-    print(data[1])
-end
-
-function get_latest_changelist_nr(data)
-    local words = split(data[1])
-    local num = tonumber(words[2])
-    return num
+local function debug_print(msg)
+    if debug_print_enabled then
+        print(msg)
+    end
 end
 
 local function get_pending_changelists(data)
-    vim.print("\nGET PENDING CHANGELISTS\nDATA:\n")
-    vim.print(data)
+    debug_print("\nGET PENDING CHANGELISTS\nDATA:\n")
+    debug_print(data)
     local lines = split(data, '\n')
-    vim.print("\nFIRST SPLIT\n")
-    vim.print(vim.inspect(lines))
+    debug_print("\nFIRST SPLIT\n")
+    debug_print(vim.inspect(lines))
     local nums = {}
-    vim.print("\nLINES:\n")
-    for i,v in ipairs(lines) do
-        vim.print(i .. "\t" .. v .. '\n')
+    debug_print("\nLINES:\n")
+    for i, v in ipairs(lines) do
+        debug_print(i .. "\t" .. v .. '\n')
         local words = split(v)
         nums[i] = words[2]
     end
     return nums
 end
 
-function checkout_callback(chan_id, data, name)
-    local bufname = vim.fn.bufname()
-    local num = get_latest_changelist_nr(data)
-    if not num == nil then
-        local cmd = "p4 edit -c " .. tostring(num) .. " " .. bufname
-        print(cmd)
-        vim.fn.jobstart(cmd, {on_stdout = print_stdout})
+local changelist_number = -1
+
+local function ask_changelist_number()
+    local job = vim.fn.system('p4 changes -s pending')
+    debug_print(job)
+    local nums = get_pending_changelists(job)
+    local prompt = "Enter changelist you wish to work in:\n"
+    for cl, name in ipairs(nums) do
+        prompt = prompt .. cl .. ":\t" .. name .. "\n"
     end
+    vim.ui.input({ prompt = prompt }, function(input)
+        changelist_number = tonumber(input)
+    end)
+    return nums[changelist_number]
 end
 
 function M.checkout()
-    print("checkout")
-    --
-    -- local obj = vim.system({'echo', 'hello'}, { text = true }):wait()
-    -- local obj = vim.system({'p4', 'changelists'}, {stdout = true}):wait()
-    -- print(obj.stdout)
+    local cl_num = ask_changelist_number()
+    local bufname = vim.fn.bufname()
+    local cmd = "p4 edit -c " .. tostring(cl_num) .. " " .. bufname
+    debug_print(cmd)
+    local job = vim.fn.system(cmd)
+    vim.notify("\n" .. job)
 end
 
 function M.changelists()
     local job = vim.fn.system('p4 changes -s pending')
-    vim.print(job)
+    debug_print(job)
     local nums = get_pending_changelists(job)
-    vim.print("\nAFTER GETTING PENDING CHANGELISTS\n")
+    debug_print("\nAFTER GETTING PENDING CHANGELISTS\n")
     vim.notify(vim.inspect(nums))
 end
 
-local function add_callback(chan_id, data, name)
-    local bufname = vim.fn.bufname()
-    local num = get_latest_changelist_nr(data)
-    local cmd = 'p4 add -d -f -c ' .. num .. " " .. bufname
-    vim.fn.jobstart(cmd, {on_stdout = print_stdout})
-end
-
 function M.add()
-    vim.fn.jobstart('p4 changelists', {on_stdout = add_callback})
+    local cl_num = ask_changelist_number()
+    local bufname = vim.fn.bufname()
+    local cmd = 'p4 add -d -f -c ' .. tostring(cl_num) .. " " .. bufname
+    local job = vim.fn.system(cmd)
+    vim.notify("\n" .. job)
 end
 
-function test_p4()
-    M.changelists()
-end
+
 return M
