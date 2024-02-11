@@ -7,6 +7,8 @@ Packer:
 require('packer').startup(function(use)
 	use 'nobu-x3/p4.nvim'
 end)
+
+require("p4-nvim").setup()
 ```
 
 
